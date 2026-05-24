@@ -2,6 +2,10 @@
 
 Text-to-image retrieval over COCO 2017 using open_clip + FAISS, with an optional Claude vision RAG layer that answers questions grounded in the retrieved images.
 
+## Demo
+
+📹 **[Watch the walkthrough video](https://drive.google.com/file/d/1exIDGgknseLXdU_r8IwSvV7JI15WBDlB/view?usp=drive_link)** — short recorded demo of the prototype in action: the headline query, examples of queries that work well, known failure modes, and a brief tour of the tech stack.
+
 ## Setup
 
 ```bash
