@@ -1,0 +1,22 @@
+[project]
+name = "image-rag-prototype"
+version = "0.1.0"
+description = "CLIP + FAISS image retrieval with a Claude vision RAG layer."
+requires-python = ">=3.11"
+dependencies = [
+    "open_clip_torch>=2.24",
+    "torch>=2.2",
+    "torchvision>=0.17",
+    "faiss-cpu>=1.8",
+    "pillow>=10.0",
+    "numpy>=1.26",
+    "tqdm>=4.66",
+    "streamlit>=1.30",
+    "anthropic>=0.40",
+    "python-dotenv>=1.0",
+    "requests>=2.31",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

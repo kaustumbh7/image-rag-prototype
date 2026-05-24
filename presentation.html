@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Image RAG — Prototype walkthrough</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Epilogue:wght@400;500;600&family=Enriqueta:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    /* Palette */
+    --color-earth: #D49E6E;
+    --color-earth-light: #F5E6D3;
+    --color-earth-cream: #EBD5BE;
+    --color-earth-report: #846751;
+    --color-earth-hero: #6D5541;
+    --color-growth: #93B48D;
+    --color-growth-light: #E8F0E6;
+    --color-action-green: #608958;
+    --color-forest-deep: #023924;
+    --color-deep: #121417;
+    --color-warm-offwhite: #F6F6F3;
+    --color-card-offwhite: #F9F9F7;
+    --color-white: #FFFFFF;
+    --color-text-secondary: #5C5C5C;
+    --color-text-muted: #8A8A8A;
+    --color-text-body: #464646;
+    --color-border: #E0E0E0;
+    --color-border-dark: #C8C8C8;
+    --color-brown-muted: rgba(57, 40, 33, 0.4);
+    --color-red: #C26F6F;
+    --color-red-soft: #F4E2E2;
+    --color-red-report: #8E4747;
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(211deg, rgb(155, 130, 110) 1%, rgb(175, 142, 112) 55%, rgb(195, 160, 125) 95%);
+    --gradient-section-divider: linear-gradient(180deg, var(--color-earth-light) 0%, var(--color-white) 100%);
+    --gradient-brand: linear-gradient(207.695deg, rgb(16, 34, 34) 1.022%, rgb(49, 97, 85) 98.235%);
+
+    /* Type */
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-headline: 'Epilogue', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-label: 'Enriqueta', Cambria, serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+
+    /* Radii / shadow */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --radius-full: 100px;
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.08);
+    --transition-base: 0.2s ease;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--color-warm-offwhite);
+    font-family: var(--font-headline);
+    color: var(--color-deep);
+    overflow: hidden;
+  }
+
+  .deck { width: 100vw; height: 100vh; position: relative; }
+
+  .slide {
+    width: 100vw; height: 100vh;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 4rem;
+    text-align: center;
+    background: var(--color-warm-offwhite);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide.active { display: flex; animation: fadeIn 0.55s ease; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .slide-content {
+    max-width: 1100px;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== Typography ===== */
+
+  h1 {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(2.4rem, 4.6vw, 3.4rem);
+    color: var(--color-deep);
+    line-height: 1.1;
+    letter-spacing: -1.2px;
+    margin-bottom: 1.5rem;
+  }
+
+  h2 {
+    font-family: var(--font-headline);
+    font-weight: 500;
+    font-size: clamp(1.2rem, 1.6vw, 1.4rem);
+    color: var(--color-earth-report);
+    margin-bottom: 1.25rem;
+    line-height: 1.4;
+  }
+
+  .lede {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: clamp(1.15rem, 1.6vw, 1.5rem);
+    color: var(--color-text-secondary);
+    line-height: 1.55;
+    margin: 0 auto;
+    max-width: 760px;
+  }
+
+  .body-list {
+    list-style: none;
+    margin: 1.5rem auto 0;
+    max-width: 740px;
+    text-align: left;
+  }
+
+  .body-list li {
+    font-family: var(--font-headline);
+    font-size: clamp(1rem, 1.3vw, 1.15rem);
+    color: var(--color-text-body);
+    line-height: 1.6;
+    padding-left: 1.4rem;
+    position: relative;
+    margin-bottom: 0.85rem;
+  }
+
+  .body-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.62em;
+    width: 6px; height: 6px;
+    background: var(--color-earth);
+    border-radius: 50%;
+  }
+
+  .body-list li b {
+    color: var(--color-deep);
+    font-weight: 600;
+  }
+
+  /* ===== Eyebrow pill ===== */
+
+  .eyebrow {
+    font-family: var(--font-label);
+    font-size: 11px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--color-earth-report);
+    background: var(--color-earth-light);
+    border: 1px solid var(--color-brown-muted);
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: var(--radius-full);
+    margin-bottom: 1.4rem;
+  }
+
+  /* ===== Hero slide ===== */
+
+  .slide-hero {
+    background: var(--gradient-hero);
+    color: white;
+  }
+  .slide-hero h1 { color: white; }
+  .slide-hero .lede { color: rgba(255, 255, 255, 0.92); }
+  .slide-hero .eyebrow {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.95);
+  }
+  .slide-hero .accent-line {
+    width: 80px; height: 2px;
+    background: rgba(255, 255, 255, 0.55);
+    margin: 1.6rem auto 1.8rem;
+  }
+
+  /* ===== Section-divider slide (light gradient) ===== */
+
+  .slide-divider { background: var(--gradient-section-divider); }
+
+  /* ===== Closing slide ===== */
+
+  .slide-closing {
+    background: var(--gradient-brand);
+    color: white;
+  }
+  .slide-closing h1 { color: white; }
+  .slide-closing .lede { color: rgba(255, 255, 255, 0.85); }
+  .slide-closing .eyebrow {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.95);
+  }
+  .slide-closing .body-list li { color: rgba(255, 255, 255, 0.92); }
+  .slide-closing .body-list li b { color: white; }
+  .slide-closing .body-list li::before { background: var(--color-earth); }
+
+  /* ===== Query callout ===== */
+
+  .query {
+    display: inline-block;
+    background: var(--color-earth-light);
+    color: var(--color-earth-report);
+    border: 1px solid var(--color-brown-muted);
+    border-left: 4px solid var(--color-earth);
+    padding: 0.95rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: clamp(1rem, 1.5vw, 1.25rem);
+    letter-spacing: -0.2px;
+    margin: 1rem auto 1.8rem;
+  }
+
+  /* ===== Example cards (good / bad) ===== */
+
+  .examples {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+    margin: 1rem auto 0;
+    max-width: 880px;
+    text-align: left;
+  }
+
+  .example {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-earth);
+    border-radius: var(--radius-md);
+    padding: 0.95rem 1.3rem;
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    gap: 1.4rem;
+    align-items: baseline;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .example .tag {
+    font-family: var(--font-label);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--color-earth-report);
+  }
+
+  .example .query-text {
+    font-family: var(--font-mono);
+    font-size: 0.98rem;
+    color: var(--color-deep);
+    line-height: 1.4;
+  }
+
+  .example .note {
+    grid-column: 1 / -1;
+    font-family: var(--font-headline);
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-border);
+    margin-top: 0.4rem;
+  }
+
+  /* failure variant */
+  .example.fail {
+    border-left-color: var(--color-red);
+  }
+  .example.fail .tag {
+    color: var(--color-red-report);
+  }
+
+  /* ===== Diagram card (ASCII flow) ===== */
+
+  .diagram {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.6rem 1.8rem;
+    margin: 0.8rem auto 0;
+    max-width: 800px;
+    box-shadow: var(--shadow-sm);
+    text-align: left;
+  }
+
+  .diagram pre {
+    font-family: var(--font-mono);
+    font-size: clamp(0.78rem, 1vw, 0.95rem);
+    line-height: 1.55;
+    color: var(--color-text-body);
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  .diagram .phase {
+    font-family: var(--font-label);
+    font-size: 0.72rem;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--color-earth-report);
+    padding-bottom: 0.6rem;
+    margin-bottom: 0.6rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .diagram .phase + pre { padding-bottom: 0.4rem; }
+
+  .diagram .phase.second {
+    margin-top: 1.2rem;
+    padding-top: 0.6rem;
+  }
+
+  /* ===== Components grid ===== */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.9rem;
+    margin: 1rem auto 0;
+    max-width: 1000px;
+    text-align: left;
+  }
+
+  .card {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.2rem 1.3rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .card .card-tag {
+    font-family: var(--font-label);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--color-earth-report);
+    margin-bottom: 0.5rem;
+  }
+
+  .card h3 {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1.25rem;
+    color: var(--color-deep);
+    margin-bottom: 0.55rem;
+    line-height: 1.2;
+  }
+
+  .card p {
+    font-family: var(--font-headline);
+    font-size: 0.88rem;
+    color: var(--color-text-secondary);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .card code {
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    background: var(--color-earth-light);
+    color: var(--color-earth-report);
+    padding: 0.05em 0.4em;
+    border-radius: 4px;
+  }
+
+  /* ===== Navigation chrome ===== */
+
+  .slide-number {
+    position: fixed;
+    bottom: 1.8rem;
+    right: 2rem;
+    font-family: var(--font-label);
+    font-size: 0.72rem;
+    letter-spacing: 1.5px;
+    color: var(--color-text-muted);
+    z-index: 10;
+    text-transform: uppercase;
+  }
+
+  .navigation {
+    position: fixed;
+    bottom: 1.6rem;
+    left: 2rem;
+    display: flex;
+    gap: 0.5rem;
+    z-index: 10;
+  }
+
+  .nav-button {
+    width: 38px; height: 38px;
+    border: 1px solid var(--color-border-dark);
+    background: var(--color-white);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: var(--color-deep);
+    transition: var(--transition-base);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .nav-button:hover {
+    background: var(--color-earth-light);
+    border-color: var(--color-earth);
+  }
+
+  .slide-hero .slide-number,
+  .slide-closing .slide-number { color: rgba(255, 255, 255, 0.7); }
+
+  .progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: var(--color-earth);
+    transition: width 0.3s ease;
+    z-index: 20;
+  }
+
+  /* ===== Slide-mark decoration (subtle leaf accent) ===== */
+
+  .slide-mark {
+    position: absolute;
+    width: 320px; height: 320px;
+    opacity: 0.06;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .slide-mark.top-right {
+    top: -80px; right: -80px;
+    background: radial-gradient(circle, var(--color-earth) 0%, transparent 70%);
+  }
+
+  .slide-mark.bottom-left {
+    bottom: -100px; left: -100px;
+    background: radial-gradient(circle, var(--color-earth) 0%, transparent 70%);
+  }
+
+  /* Helpers */
+  .accent-line {
+    width: 60px; height: 2px;
+    background: var(--color-earth);
+    margin: 1.4rem auto 1.6rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<div class="deck" id="deck">
+
+  <!-- ============================================================ -->
+  <!-- Slide 1 — Title / Hero -->
+  <!-- ============================================================ -->
+  <section class="slide slide-hero">
+    <div class="slide-content">
+      <span class="eyebrow">Prototype walkthrough</span>
+      <h1>Image RAG.</h1>
+      <div class="accent-line"></div>
+      <p class="lede">
+        Text-to-image retrieval over ~120,000 COCO images,
+        with grounded answers from Claude vision on top.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Slide 2 — The problem -->
+  <!-- ============================================================ -->
+  <section class="slide slide-divider">
+    <div class="slide-mark top-right"></div>
+    <div class="slide-content">
+      <span class="eyebrow">The problem</span>
+      <h1>Find images by description.<br/>Then ask questions about them.</h1>
+      <ul class="body-list">
+        <li>Given a corpus of <b>~120,000 images</b> and a natural-language query, return the best-matching ones.</li>
+        <li>Optionally hand those retrieved images to a vision model so it can answer a question <b>grounded in what's actually there</b>.</li>
+        <li>RAG, but with <b>images as the retrieval target</b> instead of text chunks.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Slide 3 — Headline query -->
+  <!-- ============================================================ -->
+  <section class="slide">
+    <div class="slide-mark bottom-left"></div>
+    <div class="slide-content">
+      <span class="eyebrow">Headline query</span>
+      <h1>The kind of question the system is built for.</h1>
+      <div class="query">Give me 5 images with men wearing a hat</div>
+      <ul class="body-list">
+        <li>Text → <b>CLIP text encoder</b> → 512-d vector.</li>
+        <li>Vector → <b>FAISS</b> nearest-neighbour over all pre-embedded images.</li>
+        <li>Top-5 paths → thumbnails in the UI.</li>
+        <li>Optionally → <b>Claude vision</b> writes a grounded answer that references each image by index.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Slide 4 — Where it works well -->
+  <!-- ============================================================ -->
+  <section class="slide">
+    <div class="slide-content">
+      <span class="eyebrow">Where it works well</span>
+      <h1>Subject + one or two attributes + setting.</h1>
+      <h2>The sweet spot — concrete nouns, simple verbs, common scenes.</h2>
+      <div class="examples">
+        <div class="example">
+          <div class="tag">Object + scene</div>
+          <div class="query-text">a red double-decker bus on a city street</div>
+          <div class="note">Concrete nouns and common scenes — squarely in CLIP's wheelhouse.</div>
+        </div>
+        <div class="example">
+          <div class="tag">Activity</div>
+          <div class="query-text">a woman walking</div>
+          <div class="note">Activity verbs are everywhere in CLIP's training captions: walking, running, riding, playing.</div>
+        </div>
+        <div class="example">
+          <div class="tag">Style or mood</div>
+          <div class="query-text">a black and white photo of a person riding a bicycle at night</div>
+          <div class="note">Stylistic descriptors embed cleanly — they're common alt-text language.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Slide 5 — Where it struggles -->
+  <!-- ============================================================ -->
+  <section class="slide">
+    <div class="slide-content">
+      <span class="eyebrow">Where it struggles</span>
+      <h1>Known CLIP failure modes.</h1>
+      <h2>Not bugs in the prototype — inherent to how embedding models represent meaning.</h2>
+      <div class="examples">
+        <div class="example fail">
+          <div class="tag">Counting</div>
+          <div class="query-text">exactly three apples on a wooden table</div>
+          <div class="note">No reliable notion of cardinality — returns apple-and-table-shaped images regardless of count.</div>
+        </div>
+        <div class="example fail">
+          <div class="tag">Spatial / binding</div>
+          <div class="query-text">a cat sitting to the left of a dog</div>
+          <div class="note">CLIP encodes a bag of concepts — left/right and attribute-to-object binding are lost.</div>
+        </div>
+        <div class="example fail">
+          <div class="tag">Negation</div>
+          <div class="query-text">a kitchen without a microwave</div>
+          <div class="note">"Without" embeds roughly like "with". CLIP cannot represent negation.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Slide 6 — Pipeline overview -->
+  <!-- ============================================================ -->
+  <section class="slide">
+    <div class="slide-mark top-right"></div>
+    <div class="slide-content">
+      <span class="eyebrow">Tech stack · pipeline</span>
+      <h1>Build the index once. Query it forever.</h1>
+      <div class="diagram">
+        <div class="phase">Offline — once, ~45 min on MPS</div>
+<pre>   COCO images  ──►  CLIP image encoder
+                          │
+                          ▼   L2-normalize
+                   FAISS  IndexFlatIP   +   paths.txt</pre>
+        <div class="phase second">Online — every query, &lt; 100 ms to grid</div>
+<pre>   "men wearing a hat"  ──►  CLIP text encoder
+                                  │
+                                  ▼
+                          FAISS kNN  ──►  top-k paths
+                                              │
+                                              ▼
+                                       Streamlit grid</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Slide 7 — End-to-end flow -->
+  <!-- ============================================================ -->
+  <section class="slide">
+    <div class="slide-mark bottom-left"></div>
+    <div class="slide-content">
+      <span class="eyebrow">Tech stack · end-to-end</span>
+      <h1>From keystroke to grounded answer.</h1>
+      <div class="diagram">
+<pre>  user types in Streamlit
+       │
+       ▼
+  CLIP text encoder        ──►  query vector (1×512)
+       │
+       ▼
+  FAISS  vectors @ query.T ──►  top-k indices + scores
+       │
+       ▼
+  paths.txt lookup         ──►  top-k JPEG paths
+       │
+       ├──► thumbnails in the UI
+       │
+       └──► (RAG toggle on)
+                base64-encode → Claude Sonnet 4.6
+                                          │
+                                          ▼
+                                grounded answer text</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Slide 8 — Components -->
+  <!-- ============================================================ -->
+  <section class="slide">
+    <div class="slide-content">
+      <span class="eyebrow">Tech stack · components</span>
+      <h1>What's actually under the hood.</h1>
+      <div class="grid">
+        <div class="card">
+          <div class="card-tag">Dataset</div>
+          <h3>COCO 2017</h3>
+          <p>~120k images. Diverse, well-known, free. Swap in DeepFashion or Unsplash Lite for domain-specific demos.</p>
+        </div>
+        <div class="card">
+          <div class="card-tag">Embedding model</div>
+          <h3>OpenCLIP ViT-B/32</h3>
+          <p>LAION-2B pretrained. Small enough for MPS; queries are instant. ViT-L/14 or SigLIP for harder cases.</p>
+        </div>
+        <div class="card">
+          <div class="card-tag">Vector index</div>
+          <h3>FAISS IndexFlatIP</h3>
+          <p>One matrix multiply, &lt; 10 ms. IVF / HNSW only pay off above millions of vectors.</p>
+        </div>
+        <div class="card">
+          <div class="card-tag">Normalization</div>
+          <h3>L2 at write time</h3>
+          <p>Vectors normalized at write time, so inner product equals cosine similarity.</p>
+        </div>
+        <div class="card">
+          <div class="card-tag">RAG layer</div>
+          <h3>Claude Sonnet 4.6</h3>
+          <p>Vision. Images resized to ≤ 1024 px, base64-encoded, system prompt forces grounded answers.</p>
+        </div>
+        <div class="card">
+          <div class="card-tag">UI</div>
+          <h3>Streamlit</h3>
+          <p>Model + index cached across reruns. Only the first query pays the load cost.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Slide 9 — Evaluation -->
+  <!-- ============================================================ -->
+  <section class="slide slide-divider">
+    <div class="slide-content">
+      <span class="eyebrow">Evaluation</span>
+      <h1>How would I measure if this is actually good?</h1>
+      <ul class="body-list">
+        <li><b>Spot-checks.</b> Representative queries across categories — fast, qualitative, catches regressions.</li>
+        <li><b>Recall@k on COCO captions.</b> For each ground-truth caption, does its image land in the top-k? ViT-B/32 baseline ≈ 30–40% R@1, 60–70% R@5.</li>
+        <li><b>Per-category drill-down.</b> Break recall by query type — counting, spatial, compositional, colour binding, negation — to map where the model fails.</li>
+        <li><b>RAG quality.</b> Rubric-based human review on ~50 (query, retrieved images, answer) tuples. Then scale with LLM-as-judge.</li>
+        <li><b>Latency &amp; cost.</b> Track query time, embed throughput, $/RAG call — the constraints that bite first at scale.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Slide 10 — Closing -->
+  <!-- ============================================================ -->
+  <section class="slide slide-closing">
+    <div class="slide-content">
+      <span class="eyebrow">Wrap-up</span>
+      <h1>That's the system.</h1>
+      <p class="lede">
+        CLIP gives us a shared text-image space.
+        FAISS gives us fast nearest-neighbour search over it.
+        Claude gives us reasoning over the retrieved subset.
+      </p>
+      <ul class="body-list">
+        <li><b>Next:</b> stronger embedder (SigLIP / ViT-L/14) for compositional cases.</li>
+        <li><b>Next:</b> cross-encoder re-ranker on top-50 to clean up top-5.</li>
+        <li><b>Next:</b> metadata filtering (Chroma / Qdrant) for category and attribute pre-filters.</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<div class="slide-number">
+  <span id="slide-num">01</span> &middot; <span id="slide-total">10</span>
+</div>
+
+<div class="navigation">
+  <button class="nav-button" id="prev-btn" aria-label="Previous slide">&larr;</button>
+  <button class="nav-button" id="next-btn" aria-label="Next slide">&rarr;</button>
+</div>
+
+<script>
+(() => {
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  const progress = document.getElementById('progress');
+  const slideNum = document.getElementById('slide-num');
+  const slideTotal = document.getElementById('slide-total');
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+  slideTotal.textContent = String(total).padStart(2, '0');
+
+  let idx = 0;
+  const params = new URLSearchParams(location.hash.replace('#', '?'));
+  if (params.get('s')) {
+    const n = parseInt(params.get('s'), 10);
+    if (!isNaN(n) && n >= 1 && n <= total) idx = n - 1;
+  }
+
+  function render() {
+    slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+    progress.style.width = ((idx + 1) / total * 100) + '%';
+    slideNum.textContent = String(idx + 1).padStart(2, '0');
+    location.hash = 's=' + (idx + 1);
+  }
+
+  function next() { if (idx < total - 1) { idx++; render(); } }
+  function prev() { if (idx > 0)         { idx--; render(); } }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault(); next();
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault(); prev();
+    } else if (e.key === 'Home') { idx = 0; render(); }
+    else if (e.key === 'End')  { idx = total - 1; render(); }
+  });
+
+  prevBtn.addEventListener('click', prev);
+  nextBtn.addEventListener('click', next);
+
+  // Click on slide background (not buttons / interactive elements) to advance.
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('button, a, input, .navigation, code, pre')) return;
+    if (e.clientX < window.innerWidth / 2) prev(); else next();
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
